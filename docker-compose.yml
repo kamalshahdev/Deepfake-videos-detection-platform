@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: deepfake-api
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_PATH=models/deepfake_multimodal.pt
+      - MAX_UPLOAD_MB=200
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: deepfake-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      - api
