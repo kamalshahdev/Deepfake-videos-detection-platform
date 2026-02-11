@@ -9,6 +9,7 @@ import os
 class Settings:
     app_name: str
     model_path: Path
+    decision_threshold: float
     max_upload_mb: int
     allowed_extensions: tuple[str, ...]
 
@@ -16,6 +17,7 @@ class Settings:
 settings = Settings(
     app_name="ByteGuard Multimodal API",
     model_path=Path(os.getenv("MODEL_PATH", "models/deepfake_multimodal.pt")),
+    decision_threshold=float(os.getenv("DECISION_THRESHOLD", "0.5")),
     max_upload_mb=int(os.getenv("MAX_UPLOAD_MB", "200")),
     allowed_extensions=(".mp4", ".mov", ".avi", ".mkv", ".webm"),
 )

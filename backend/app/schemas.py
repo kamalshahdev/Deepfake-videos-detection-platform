@@ -59,6 +59,10 @@ class PredictionResponse(BaseModel):
     report: AnalysisReport
 
 
+class URLPredictionRequest(BaseModel):
+    url: str = Field(..., min_length=5)
+
+
 class HealthResponse(BaseModel):
     status: str
 
@@ -67,6 +71,7 @@ class ModelInfoResponse(BaseModel):
     model_loaded: bool
     model_source: str
     model_path: str
+    decision_threshold: float
     video_dim: int
     audio_dim: int
     meta_dim: int

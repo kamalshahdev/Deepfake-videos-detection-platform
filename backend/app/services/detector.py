@@ -38,9 +38,10 @@ class PredictionResult:
 
 
 class DeepfakeDetector:
-    def __init__(self, model_path: Path) -> None:
+    def __init__(self, model_path: Path, decision_threshold: float = 0.5) -> None:
         self.extractor = MultimodalFeatureExtractor()
         self.model_path = model_path
+        self.decision_threshold = float(max(0.0, min(1.0, decision_threshold)))
 
         if torch is not None and load_checkpoint is not None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -242,7 +243,7 @@ class DeepfakeDetector:
             score, weights = self._heuristic_prediction(features)
             source = "heuristic_baseline"
 
-        label = "fake" if score >= 0.5 else "real"
+        label = "fake" if score >= self.decision_threshold else "real"
         confidence = score if label == "fake" else 1.0 - score
         risk_level, summary, recommendation, media_info, forensic_signals = self._build_report(
             features=features,

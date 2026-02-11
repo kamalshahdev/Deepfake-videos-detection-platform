@@ -15,6 +15,8 @@ This repository includes:
 
 ## 1. Quick Start (Local)
 
+Run all commands from the repository root (`Deepfake-video-detection-platform`).
+
 ### 1.1 Create environment
 
 ```bash
@@ -26,13 +28,13 @@ pip install -r requirements.txt
 ### 1.2 Run backend API
 
 ```bash
-uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 1.3 Run frontend
 
 ```bash
-streamlit run frontend/app.py
+python -m streamlit run frontend/app.py
 ```
 
 The frontend calls `http://localhost:8000` by default.
@@ -50,6 +52,8 @@ python -m streamlit run frontend/app.py
 Open `http://localhost:8501`, upload a video, click **Run detection**, then download:
 - report JSON
 - report TXT
+
+You can also paste a video URL (direct `.mp4` link or social post URL) in the frontend and run detection from URL.
 
 ## 2. Train a Model
 
@@ -69,6 +73,43 @@ Train:
 
 ```bash
 python scripts/train.py --dataset-csv data/train_manifest.csv --output models/deepfake_multimodal.pt
+```
+
+Resume-safe training (recommended for large datasets):
+
+```bash
+python scripts/train.py --dataset-csv data/train_manifest_dfd_full.csv --output A:/deepfake-data/models/deepfake_multimodal_dfd.pt --epochs 12 --batch-size 32 --resume
+```
+
+- The trainer now saves checkpoint state every epoch to `--output`
+- If interrupted, rerun the same command with `--resume`
+- Feature extraction cache is saved to `data/train_manifest_dfd_full.csv.features.npz` by default
+- You can speed up extraction on CPU with `--frame-stride` and `--max-frames`
+
+Fast balanced-subset mode (CPU-friendly):
+
+```bash
+python scripts/create_balanced_manifest.py --input data/train_manifest_dfd_full.csv --output data/train_manifest_dfd_balanced.csv --shuffle
+python scripts/train.py --dataset-csv data/train_manifest_dfd_balanced.csv --output models/deepfake_multimodal_balanced.pt --epochs 10 --batch-size 32 --frame-stride 24 --max-frames 24 --progress-every 25 --resume
+```
+
+Post-training evaluation (go/no-go):
+
+```bash
+python scripts/evaluate_checkpoint.py --checkpoint A:/deepfake-data/models/deepfake_multimodal_balanced.pt --feature-cache data/train_manifest_dfd_balanced.csv.features.npz --split val-from-checkpoint --output-json A:/deepfake-data/models/eval_balanced_val.json
+```
+
+8-hour optimization sweep on cached features:
+
+```bash
+python scripts/optimize_variants.py --dataset-csv data/train_manifest_dfd_2000.csv --feature-cache data/train_manifest_dfd_2000.csv.features.npz --output-dir A:/deepfake-data/models/variants_2000 --summary-json A:/deepfake-data/models/variants_2000_summary.json
+```
+
+Set decision threshold for API predictions (PowerShell):
+
+```bash
+$env:DECISION_THRESHOLD="0.45"
+python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 2.1 Import Public Dataset Layouts
@@ -136,6 +177,13 @@ python scripts/import_public_dataset.py --dataset-type dfdc --root data/raw/dfdc
 python scripts/train.py --dataset-csv data/train_manifest_dfdc.csv --output models/deepfake_multimodal.pt --epochs 20 --batch-size 32
 ```
 
+Run inference API with a specific trained checkpoint (PowerShell):
+
+```bash
+$env:MODEL_PATH="A:/deepfake-data/models/deepfake_multimodal_dfd.pt"
+python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
 Automated alternative (download + extract):
 
 ```bash
@@ -167,6 +215,7 @@ python scripts/train.py --dataset-csv data/train_manifest_all.csv --output model
 - `GET /health`: service health
 - `GET /model-info`: model loading and config
 - `POST /predict`: upload a video file and get deepfake score + full analysis report
+- `POST /predict-url`: send JSON `{ "url": "https://..." }` and analyze a video URL
 
 ## 4. Docker
 
@@ -182,3 +231,4 @@ docker compose up --build
 - The baseline feature extractor is intentionally lightweight and explainable.
 - Accuracy depends on training data quality and diversity.
 - For production use, add robust face tracking, temporal transformers, and adversarial hard-negative mining.
+- In this DFD manifest, real videos are fewer than fake videos. A balanced subset may reduce majority-class bias.
